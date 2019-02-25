@@ -44,17 +44,13 @@ import css from './BpmnEditor.less';
 
 import generateImage from '../../util/generateImage';
 
-import {
-  hasNamespaceUrl,
-  replaceNamespace
-} from './util/namespace';
+import namespacesUtil from './util/namespace';
 
 import Metadata from '../../../util/Metadata';
 
 
 const NAMESPACE_URL_ACTIVITI = 'http://activiti.org/bpmn',
       NAMESPACE_URL_CAMUNDA = 'http://camunda.org/schema/1.0/bpmn',
-      NAMESPACE_PREFIX_ACTIVITI = 'activiti',
       NAMESPACE_PREFIX_CAMUNDA = 'camunda';
 
 const EXPORT_AS = [ 'png', 'jpeg', 'svg' ];
@@ -259,7 +255,9 @@ export class BpmnEditor extends CachedComponent {
   }
 
   handleNamespace = async (xml) => {
-    const shouldConvert = await this.isNamespaceConversionNeeded(xml);
+    const searchResults = namespacesUtil.find(xml, NAMESPACE_URL_ACTIVITI);
+
+    const shouldConvert = await this.isNamespaceConversionNeeded(searchResults);
 
     if (!shouldConvert) {
       return xml;
@@ -270,11 +268,11 @@ export class BpmnEditor extends CachedComponent {
     } = this.props;
 
 
-    const convertedXML = await replaceNamespace(xml, {
-      newNamespacePrefix: NAMESPACE_PREFIX_CAMUNDA,
-      newNamespaceUrl: NAMESPACE_URL_CAMUNDA,
-      oldNamespacePrefix: NAMESPACE_PREFIX_ACTIVITI,
-      oldNamespaceUrl: NAMESPACE_URL_ACTIVITI
+    const convertedXML = await namespacesUtil.replace(xml, {
+      oldPrefixes: searchResults.prefixes,
+      newPrefix: NAMESPACE_PREFIX_CAMUNDA,
+      oldNamespaceUrl: NAMESPACE_URL_ACTIVITI,
+      newNamespaceUrl: NAMESPACE_URL_CAMUNDA
     });
 
     onContentUpdated(convertedXML);
@@ -282,15 +280,17 @@ export class BpmnEditor extends CachedComponent {
     return convertedXML;
   }
 
-  async isNamespaceConversionNeeded(xml) {
+
+
+  async isNamespaceConversionNeeded({ targetNamespace, prefixes }) {
+    if (!targetNamespace && !prefixes.length) {
+      return false;
+    }
+
     try {
-      const namespaceFound = await hasNamespaceUrl(xml, NAMESPACE_URL_ACTIVITI);
+      const answer = await this.props.onAction('show-dialog', getNamespaceDialog());
 
-      if (namespaceFound) {
-        const answer = await this.props.onAction('show-dialog', getNamespaceDialog());
-
-        return answer === 'yes';
-      }
+      return answer === 'yes';
     } catch (error) {
       // swallow
     }

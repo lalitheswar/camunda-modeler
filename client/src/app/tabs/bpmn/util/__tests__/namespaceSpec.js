@@ -5,153 +5,126 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {
-  fromXML,
-  hasNamespaceUrl,
-  replaceNamespace,
-  replaceNamespacePrefix,
-  replaceNamespaceUrl,
-  toXML
-} from '../namespace';
+import namespaceUtil from '../namespace';
 
-import activitiXML from './activiti.bpmn';
-
-const NAMESPACE_URL_ACTIVITI = 'http://activiti.org/bpmn',
-      NAMESPACE_URL_CAMUNDA = 'http://camunda.org/schema/1.0/bpmn',
-      NAMESPACE_PREFIX_ACTIVITI = 'activiti',
-      NAMESPACE_PREFIX_CAMUNDA = 'camunda';
+import diagram from './fixtures/diagram.bpmn';
+import activiti from './fixtures/activiti.xml';
+import activitiExpected from './fixtures/activitiExpected.xml';
+import activitiCamunda from './fixtures/activitiCamunda.xml';
+import activitiCamundaExpected from './fixtures/activitiCamundaExpected.xml';
+import activitiComplex from './fixtures/activitiComplex.xml';
+import activitiComplexExpected from './fixtures/activitiComplexExpected.xml';
 
 
-describe('namespace', function() {
+const NAMESPACE_URL_ACTIVITI = 'http://activiti.org/bpmn';
+const NAMESPACE_URL_CAMUNDA = 'http://camunda.org/schema/1.0/bpmn';
+const CAMUNDA_PREFIX = 'camunda';
 
-  describe('#fromXML', function() {
+describe('util - namespace', function() {
 
-    it('should create { definitions, elements, moddle } from XML', async function() {
+  describe('findNamespace', function() {
 
+    it('should return { ["activiti"], targetNamespace: true } for activiti diagram', function() {
       // when
-      const {
-        definitions,
-        elements,
-        moddle
-      } = await fromXML(activitiXML);
+      const { prefixes, targetNamespace } = namespaceUtil.find(activiti, NAMESPACE_URL_ACTIVITI);
 
       // then
-      expect(definitions).to.exist;
-      expect(elements).to.exist;
-      expect(moddle).to.exist;
+      expect(prefixes).to.be.eql(['activiti']);
+      expect(targetNamespace).to.be.true;
+    });
+
+
+    it('should return { [], targetNamespace: true } when namespace is found only as target', function() {
+      // when
+      const { prefixes, targetNamespace } = namespaceUtil.find(activitiCamunda, NAMESPACE_URL_ACTIVITI);
+
+      // then
+      expect(prefixes).to.be.eql([]);
+      expect(targetNamespace).to.be.true;
+    });
+
+
+    it('should return { [], targetNamespace: false } when namespace is not found', function() {
+      // when
+      const { prefixes, targetNamespace } = namespaceUtil.find(diagram, NAMESPACE_URL_ACTIVITI);
+
+      // then
+      expect(prefixes).to.be.eql([]);
+      expect(targetNamespace).to.be.false;
+    });
+
+
+    it('should return { [], targetNamespace: false } when error occurs', function() {
+      // when
+      const { prefixes, targetNamespace } = namespaceUtil.find('error>', NAMESPACE_URL_ACTIVITI);
+
+      // then
+      expect(prefixes).to.be.eql([]);
+      expect(targetNamespace).to.be.false;
     });
 
   });
 
 
-  describe('#toXML', function() {
+  describe('find and replace', function() {
 
-    it('should create XML from definitions ', async function() {
+    it('should find and replace Activiti namespace with camunda', function() {
 
       // given
-      const {
-        definitions,
-        moddle
-      } = await fromXML(activitiXML);
+      const [ beforeConversion, expected ] = [ activiti, activitiExpected ];
 
       // when
-      const xml = await toXML(definitions, moddle);
+      const { prefixes } = namespaceUtil.find(beforeConversion, NAMESPACE_URL_ACTIVITI);
 
-      // then
-      expect(xml).to.exist;
-    });
-
-  });
-
-
-  describe('#hasNamespaceUrl', function() {
-
-    it('should have namespace URL', async function() {
-
-      // when
-      const result = await hasNamespaceUrl(activitiXML, NAMESPACE_URL_ACTIVITI);
-
-      // then
-      expect(result).to.be.true;
-    });
-
-  });
-
-
-  describe('#replaceNamespacePrefix', function() {
-
-    it('should replace namespace prefix (activiti -> camunda)', async function() {
-
-      // given
-      const {
-        definitions,
-        elements,
-        moddle
-      } = await fromXML(activitiXML);
-
-      // when
-      replaceNamespacePrefix(definitions, elements, NAMESPACE_PREFIX_ACTIVITI, NAMESPACE_PREFIX_CAMUNDA);
-
-      // then
-      const xml = await toXML(definitions, moddle);
-
-      expect(xml.includes('xmlns:activiti="http://activiti.org/bpmn"')).to.be.false;
-      expect(xml.includes('xmlns:camunda="http://activiti.org/bpmn"')).to.be.true;
-
-      expect(xml.includes('activiti:assignee')).to.be.false;
-      expect(xml.includes('camunda:assignee')).to.be.true;
-    });
-
-  });
-
-
-  describe('#replaceNamespaceUrl', function() {
-
-    it('should replace namespace url (http://activiti.org/bpmn -> http://camunda.org/schema/1.0/bpmn)', async function() {
-
-      // given
-      const {
-        definitions,
-        moddle
-      } = await fromXML(activitiXML);
-
-      // when
-      replaceNamespaceUrl(definitions, NAMESPACE_URL_ACTIVITI, NAMESPACE_URL_CAMUNDA);
-
-      // then
-      const xml = await toXML(definitions, moddle);
-
-      expect(xml.includes('xmlns:activiti="http://activiti.org/bpmn"')).to.be.false;
-      expect(xml.includes('xmlns:activiti="http://camunda.org/schema/1.0/bpmn"')).to.be.true;
-
-      expect(xml.includes('targetNamespace="http://activiti.org/bpmn"')).to.be.false;
-      expect(xml.includes('targetNamespace="http://camunda.org/schema/1.0/bpmn"')).to.be.true;
-    });
-
-  });
-
-
-  describe('#replaceNamespace', function() {
-
-    it('should replace namespace prefixes and URLs', async function() {
-
-      // when
-      const xml = await replaceNamespace(activitiXML, {
-        newNamespacePrefix: NAMESPACE_PREFIX_CAMUNDA,
-        newNamespaceUrl: NAMESPACE_URL_CAMUNDA,
-        oldNamespacePrefix: NAMESPACE_PREFIX_ACTIVITI,
-        oldNamespaceUrl: NAMESPACE_URL_ACTIVITI
+      const result = namespaceUtil.replace(beforeConversion, {
+        oldPrefixes: prefixes,
+        newPrefix: CAMUNDA_PREFIX,
+        oldNamespaceUrl: NAMESPACE_URL_ACTIVITI,
+        newNamespaceUrl: NAMESPACE_URL_CAMUNDA
       });
 
       // then
-      expect(xml.includes('xmlns:activiti="http://activiti.org/bpmn"')).to.be.false;
-      expect(xml.includes('xmlns:camunda="http://camunda.org/schema/1.0/bpmn"')).to.be.true;
+      expect(result).to.equal(expected);
+    });
 
-      expect(xml.includes('targetNamespace="http://activiti.org/bpmn"')).to.be.false;
-      expect(xml.includes('targetNamespace="http://camunda.org/schema/1.0/bpmn"')).to.be.true;
 
-      expect(xml.includes('activiti:assignee')).to.be.false;
-      expect(xml.includes('camunda:assignee')).to.be.true;
+    it('should not replace camunda prefix', function() {
+
+      // given
+      const [ beforeConversion, expected ] = [ activitiCamunda, activitiCamundaExpected ];
+
+      // when
+      const { prefixes } = namespaceUtil.find(beforeConversion, NAMESPACE_URL_ACTIVITI);
+
+      const result = namespaceUtil.replace(beforeConversion, {
+        oldPrefixes: prefixes,
+        newPrefix: CAMUNDA_PREFIX,
+        oldNamespaceUrl: NAMESPACE_URL_ACTIVITI,
+        newNamespaceUrl: NAMESPACE_URL_CAMUNDA
+      });
+
+      // then
+      expect(result).to.equal(expected);
+    });
+
+
+    it('should find and replace Activiti namespace with camunda for complex diagram', function() {
+
+      // given
+      const [ beforeConversion, expected ] = [ activitiComplex, activitiComplexExpected ];
+
+      // when
+      const { prefixes } = namespaceUtil.find(beforeConversion, NAMESPACE_URL_ACTIVITI);
+
+      const result = namespaceUtil.replace(beforeConversion, {
+        oldPrefixes: prefixes,
+        newPrefix: CAMUNDA_PREFIX,
+        oldNamespaceUrl: NAMESPACE_URL_ACTIVITI,
+        newNamespaceUrl: NAMESPACE_URL_CAMUNDA
+      });
+
+      // then
+      expect(result).to.equal(expected);
     });
 
   });
