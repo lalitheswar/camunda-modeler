@@ -14,6 +14,8 @@ import activitiCamunda from './fixtures/activitiCamunda.xml';
 import activitiCamundaExpected from './fixtures/activitiCamundaExpected.xml';
 import activitiComplex from './fixtures/activitiComplex.xml';
 import activitiComplexExpected from './fixtures/activitiComplexExpected.xml';
+import activitiMalicious from './fixtures/activitiMalicious.xml';
+import activitiMaliciousExpected from './fixtures/activitiMaliciousExpected.xml';
 
 
 const NAMESPACE_URL_ACTIVITI = 'http://activiti.org/bpmn';
@@ -112,6 +114,25 @@ describe('util - namespace', function() {
 
       // given
       const [ beforeConversion, expected ] = [ activitiComplex, activitiComplexExpected ];
+
+      // when
+      const { prefixes } = namespaceUtil.find(beforeConversion, NAMESPACE_URL_ACTIVITI);
+
+      const result = namespaceUtil.replace(beforeConversion, {
+        oldPrefixes: prefixes,
+        newPrefix: CAMUNDA_PREFIX,
+        oldNamespaceUrl: NAMESPACE_URL_ACTIVITI,
+        newNamespaceUrl: NAMESPACE_URL_CAMUNDA
+      });
+
+      // then
+      expect(result).to.equal(expected);
+    });
+
+
+    it('should not fail to convert malicious diagram', function() {
+      // given
+      const [ beforeConversion, expected ] = [ activitiMalicious, activitiMaliciousExpected ];
 
       // when
       const { prefixes } = namespaceUtil.find(beforeConversion, NAMESPACE_URL_ACTIVITI);

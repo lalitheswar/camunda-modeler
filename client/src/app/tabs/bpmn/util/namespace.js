@@ -106,9 +106,11 @@ class NamespaceUtil {
     ];
 
     oldPrefixes.forEach(prefix => {
+      const safePrefix = this.escapePrefix(prefix);
+
       patterns.push(
-        new RegExp('(\\s)' + prefix + '(:[A-z0-9-.]+)', 'g'),
-        new RegExp('(<|</)' + prefix + '(:[A-z0-9-.]+(>|\\s))', 'g')
+        new RegExp('(\\s)' + safePrefix + '(:[A-z0-9-.]+)', 'g'),
+        new RegExp('(<|</)' + safePrefix + '(:[A-z0-9-.]+(>|\\s))', 'g')
       );
     });
 
@@ -123,6 +125,15 @@ class NamespaceUtil {
     var pattern = new RegExp(oldNamespaceUrl, 'g');
 
     return xml.replace(pattern, newNamespaceUrl);
+  }
+
+  /**
+   * Escapes "." which is the only special RegEx character allowed for xml namespace prefix.
+   * @param {string} prefix
+   * @return {string} escaped prefix
+   */
+  escapePrefix(prefix) {
+    return prefix.replace('.', '\\.');
   }
 }
 
